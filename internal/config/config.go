@@ -395,11 +395,11 @@ const Example = `# herd settings. herd reloads this file when it changes.
 
 [integrations.limit_rings]
 # enabled = false
-# file = "~/.cache/limit-rings.json"   # same format as Harp
+# file = "~/.cache/limit-rings.json"
 
 [integrations.tmux]
 # bind_keys = true        # prefix C-h = sidebar, prefix C-j = next agent that needs you
-# session_script = ""     # Harp-compatible rename/group script
+# session_script = ""     # rename/group script
 
 [notify]
 # desktop = true
