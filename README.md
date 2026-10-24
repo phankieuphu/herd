@@ -21,8 +21,6 @@ Run many Claude Code and Codex agents side by side in tmux, with one sidebar tha
 
 herd is a small Go program. It runs inside any terminal (iTerm2, Terminal.app, Ghostty, Warp, Alacritty, or a terminal app on your phone over ssh). It only needs **tmux 3.2+** and **git**.
 
-It is a Go take on [Harp](https://github.com/dominikmartn/harp), which is a fork of the Warp terminal. Harp is a full desktop app. herd keeps the same idea (a sidebar that shows agent states), reads the same limit-rings file, and understands Harp's tmux options, but it is a terminal program built on tmux. It shares no code with Harp or Warp.
-
 ## What it does
 
 - **Agent states at a glance.** Each row shows if the agent is working (spinner), **needs you** (◆), done (✓), has background work running (◐), exited (○) or is set aside (☾). A dot (•) means "you have not looked yet".
@@ -32,7 +30,7 @@ It is a Go take on [Harp](https://github.com/dominikmartn/harp), which is a fork
 - **Groups** that stay put. Order, names, groups and flags live in tmux, so they survive restarts.
 - **Notifications** on your desktop, in the tmux status line, and on your phone (ntfy or Telegram) when you are away.
 - **Status bar segment.** `herd status --tmux` prints `◆1 ●2 ✓1` for tmux's `status-right`.
-- **Limit rings.** Usage of the 5-hour window and the weekly limit per provider, from the same JSON file Harp uses.
+- **Limit rings.** Usage of the 5-hour window and the weekly limit per provider, read from a JSON file.
 - **Works over ssh.** Every agent is a normal tmux session. From your phone, `herd attach fix-auth` or `herd` gives you the same view.
 - **Any agent.** Detection rules are regular expressions in the settings file, so you can add Gemini CLI, Aider, OpenCode or anything else.
 
@@ -116,7 +114,7 @@ Two tmux keys are added (turn them off with `bind_keys = false`):
 
 ### How herd knows what an agent is doing
 
-1. **Hooks (best).** `herd install-hooks` adds `herd hook claude` to `~/.claude/settings.json` for these events: `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Notification`, `Stop`, `SubagentStop`, `PreCompact`, `SessionEnd`. The hook finds its pane from `$TMUX_PANE` and writes the state there. It never fails the agent. On `Stop` it reads the transcript and counts background shells and subagents that are still running, so a row says "background" until that work is really done (the same idea as Harp's background-tasks hook).
+1. **Hooks (best).** `herd install-hooks` adds `herd hook claude` to `~/.claude/settings.json` for these events: `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Notification`, `Stop`, `SubagentStop`, `PreCompact`, `SessionEnd`. The hook finds its pane from `$TMUX_PANE` and writes the state there. It never fails the agent. On `Stop` it reads the transcript and counts background shells and subagents that are still running, so a row says "background" until that work is really done.
    For Codex, it sets `notify = ["herd", "hook", "codex"]` in `~/.codex/config.toml` (only if you have no other notify program).
 2. **The screen.** herd also reads the visible text of each agent pane about once a second. "esc to interrupt" means working; "Do you want to proceed?" means it needs you. This works with no hooks at all, and it catches prompts before hooks do.
 3. **The process.** When the agent quits and only the shell is left, the row shows "exited".
@@ -139,7 +137,7 @@ A session you start somewhere else can join the sidebar:
 
 ```sh
 tmux new -s hotfix
-tmux set-option @herd_adopt 1      # Harp's @warp_adopt 1 works too
+tmux set-option @herd_adopt 1
 ```
 
 Phone notifications: herd can push when an agent needs you and no tmux client was used for a while.
@@ -193,7 +191,7 @@ file = "~/.cache/limit-rings.json"
 
 [integrations.tmux]
 bind_keys = true
-session_script = ""              # Harp-compatible rename/group script
+session_script = ""              # rename/group script: called as `rename <shell_pid> <group> <title>` and `group <session_id> <old> <new>`
 ```
 
 ### Add your own agent
@@ -225,7 +223,7 @@ Press `N` in the sidebar, or run `herd new --preset review`.
 
 ### Limit rings file
 
-herd reads the same file as Harp: one JSON object, one key per provider. herd never fetches numbers itself; another tool keeps the file up to date.
+herd reads one JSON file: one object, one key per provider. herd never fetches numbers itself; another tool keeps the file up to date.
 
 ```json
 {
@@ -236,20 +234,6 @@ herd reads the same file as Harp: one JSON object, one key per provider. herd ne
 ```
 
 `_ts` is when the numbers were read (epoch seconds). Readings older than 15 minutes, or with `"ok": false` or `"stale": true`, show as stale. A reset time in the past hides that number. From 80% the bar turns orange; at 100% it shows ●.
-
-## Harp compatibility
-
-| Harp | herd |
-|---|---|
-| Agent states, unread mark, moon | same |
-| Cmd+R rename | `r` |
-| Groups that survive a restart | stored in tmux pane options |
-| `@warp_adopt 1` | works (and `@herd_adopt 1`) |
-| `@warp_group` on an adopted session | used as its group |
-| Limit rings JSON | same format |
-| `integrations.tmux.session_script` | same arguments (`rename <shell_pid> <group> <title>`, `group <session_id> <old> <new>`) |
-| Background-tasks hook | built into `herd hook claude` |
-| Warp's terminal, AI and cloud features | not included — herd runs in your terminal |
 
 ## Commands
 

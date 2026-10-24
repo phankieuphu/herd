@@ -277,13 +277,10 @@ func TestEditsAndAdopt(t *testing.T) {
 		t.Fatal("ungroup")
 	}
 
-	// adopt a session started outside herd (Harp's option names)
+	// adopt a session started outside herd
 	_, err := h.eng.T.Run("new-session", "-d", "-s", "phone", "-c", h.dir)
 	h.must(err)
-	_, err = h.eng.T.Batch(
-		[]string{"set-option", "-t", "=phone:", model.OptWarpAdopt, "1"},
-		[]string{"set-option", "-t", "=phone:", model.OptWarpGroup, "remote"},
-	)
+	_, err = h.eng.T.Run("set-option", "-t", "=phone:", model.OptAdopt, "1")
 	h.must(err)
 	n, err := h.eng.Adopt(h.snap())
 	h.must(err)
@@ -297,7 +294,7 @@ func TestEditsAndAdopt(t *testing.T) {
 			adopted = &x
 		}
 	}
-	if adopted == nil || adopted.Group != "remote" || adopted.Home != "phone" || adopted.Read {
+	if adopted == nil || adopted.Home != "phone" || adopted.Read {
 		t.Fatalf("adopted %+v", adopted)
 	}
 	if n, _ := h.eng.Adopt(h.snap()); n != 0 {

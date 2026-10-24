@@ -802,7 +802,7 @@ func (e *Engine) Popup(dir, script string) error {
 	return err
 }
 
-// Adopt takes over sessions marked with @herd_adopt 1 (or Harp's @warp_adopt 1).
+// Adopt takes over sessions marked with @herd_adopt 1.
 func (e *Engine) Adopt(s *Snapshot) (int, error) {
 	n := 0
 	order := 0.0
@@ -837,10 +837,6 @@ func (e *Engine) Adopt(s *Snapshot) (int, error) {
 			tmux.SetPaneOpt(p.ID, model.OptCreated, strconv.FormatInt(time.Now().Unix()-int64(detectGrace()), 10)),
 			tmux.SetPaneOpt(p.ID, model.OptRead, "0"),
 			{"set-option", "-u", "-t", "=" + p.Session + ":", model.OptAdopt},
-			{"set-option", "-u", "-t", "=" + p.Session + ":", model.OptWarpAdopt},
-		}
-		if p.WarpGroup != "" {
-			cmds = append(cmds, tmux.SetPaneOpt(p.ID, model.OptGroup, p.WarpGroup))
 		}
 		if repo := gitwt.Toplevel(p.Path); repo != "" {
 			cmds = append(cmds, tmux.SetPaneOpt(p.ID, model.OptRepo, repo), tmux.SetPaneOpt(p.ID, model.OptBase, gitwt.Head(repo)))
@@ -929,7 +925,7 @@ func (e *Engine) Quit() error {
 	return err
 }
 
-// script calls the Harp-compatible session script, if configured.
+// script calls the session script, if configured.
 func (e *Engine) script(args ...string) {
 	sc := e.Cfg.Get().Integrations.Tmux.SessionScript
 	if sc == "" {
