@@ -322,11 +322,18 @@ func (m Model) dialogLines() []string {
 				val = d.inputs[f-1].View()
 			}
 			out = append(out, mark+ls.Render(fmt.Sprintf("%-8s", label))+" "+val)
+			if f == 1 && d.focus == 1 {
+				out = append(out, folderLines(d, w)...)
+			}
 		}
 		if d.target != "" {
 			out = append(out, sDim.Render("  group: "+d.target))
 		}
-		out = append(out, sDim.Render("  tab next · ←→ change · ⏎ start · esc"))
+		if d.focus == 1 {
+			out = append(out, sDim.Render("  tab complete · ↓ next · ⏎ start · esc"))
+		} else {
+			out = append(out, sDim.Render("  tab next · ←→ change · ⏎ start · esc"))
+		}
 	case dlgPreset:
 		out = append(out, " "+sBold.Render(d.title))
 		for i, o := range d.options {
@@ -356,6 +363,33 @@ func (m Model) dialogLines() []string {
 			out = append(out, sDim.Render(fit(" groups: "+strings.Join(d.options, ", "), w)))
 		}
 		out = append(out, sDim.Render("  ⏎ ok · esc cancel"))
+	}
+	return out
+}
+
+// folderLines lists up to five folder suggestions under the folder field,
+// keeping the one picked by tab in view.
+func folderLines(d *dialog, w int) []string {
+	const show = 5
+	if len(d.sugg) == 0 {
+		return nil
+	}
+	start := 0
+	if d.suggIdx >= show {
+		start = d.suggIdx - show + 1
+	}
+	end := min(start+show, len(d.sugg))
+	var out []string
+	for i := start; i < end; i++ {
+		line := fit("           "+d.sugg[i]+"/", w)
+		if i == d.suggIdx {
+			out = append(out, sAccent.Render(line))
+		} else {
+			out = append(out, sDim.Render(line))
+		}
+	}
+	if more := len(d.sugg) - end; more > 0 {
+		out = append(out, sFaint.Render(fmt.Sprintf("           +%d more", more)))
 	}
 	return out
 }

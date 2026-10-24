@@ -35,6 +35,12 @@ type dialog struct {
 	kindIdx  int
 	worktree bool
 
+	// folder suggestions; while cycling, tab steps through sugg
+	sugg        []string
+	suggIdx     int
+	cycling     bool
+	cycleParent string
+
 	// lists (presets, group suggestions)
 	options []string
 	optIdx  int
