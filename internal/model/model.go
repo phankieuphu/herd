@@ -63,9 +63,7 @@ const (
 	OptCreated    = "@herd_created" // unix seconds
 
 	// session options
-	OptAdopt     = "@herd_adopt"
-	OptWarpAdopt = "@warp_adopt"
-	OptWarpGroup = "@warp_group"
+	OptAdopt = "@herd_adopt"
 
 	// global options
 	OptGroups    = "@herd_groups"    // group order, "\n" separated
@@ -85,7 +83,7 @@ var paneVars = []string{
 	OptRole, OptKind, OptTitle, OptGroup, OptOrder, OptHome, OptDir, OptRepo,
 	OptWorktree, OptBranch, OptBase, OptInactive, OptRead, OptHooked,
 	OptTranscript, OptState, OptStateTS, OptBG, OptBGKinds, OptView, OptViewTS,
-	OptCreated, OptAdopt, OptWarpAdopt, OptWarpGroup,
+	OptCreated, OptAdopt,
 }
 
 // PaneFormat is the -F format used to list panes.
@@ -132,7 +130,6 @@ type Pane struct {
 	Created    int64
 
 	AdoptFlag bool
-	WarpGroup string
 }
 
 // IsAgent reports whether herd manages this pane as an agent.
@@ -168,7 +165,7 @@ func ParsePanes(out string) []Pane {
 			Inactive: b(25), Read: f[26] != "0", Hooked: b(27), Transcript: g(28),
 			HookState: State(g(29)), HookTS: n64(30), BG: n(31), BGKinds: g(32),
 			View: State(g(33)), ViewTS: n64(34), Created: n64(35),
-			AdoptFlag: b(36) || b(37), WarpGroup: g(38),
+			AdoptFlag: b(36),
 		}
 		if !p.HookState.Valid() {
 			p.HookState = ""

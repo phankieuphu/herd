@@ -1,4 +1,4 @@
-// Package limits reads the usage-limit file used by Harp's "limit rings".
+// Package limits reads the usage-limit file shown as "limit rings".
 //
 // The file is one JSON object. A top-level key is a provider when its value
 // is an object with at least one of _ts, used5h or usedWeek. Keys that start
