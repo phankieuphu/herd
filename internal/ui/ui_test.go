@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -127,7 +129,7 @@ func TestKeys(t *testing.T) {
 	if m.dlg.target != "api" {
 		t.Fatalf("new agent should default to the selected group, got %q", m.dlg.target)
 	}
-	m = press(m, "tab", "x", "y")
+	m = press(m, "down", "x", "y")
 	if m.dlg.value(1) != "xy" {
 		t.Fatalf("name field: %q", m.dlg.value(1))
 	}
@@ -203,5 +205,52 @@ func TestEmptyView(t *testing.T) {
 func TestFuzzy(t *testing.T) {
 	if !fuzzy("fix auth herd/fix-auth", "fxa") || fuzzy("docs", "dz") || !fuzzy("Tiếng Việt", "tv") {
 		t.Fatal("fuzzy")
+	}
+}
+
+func TestFolderComplete(t *testing.T) {
+	root := t.TempDir()
+	for _, d := range []string{"code/api", "code/apps", "code/web", "Documents", ".hidden"} {
+		if err := os.MkdirAll(filepath.Join(root, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "code", "notes.txt"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m := press(testModel(t), "n")
+	in := &m.dlg.inputs[0]
+	in.SetValue(root + "/co")
+	m = press(m, "tab")
+	if got := m.dlg.inputs[0].Value(); got != root+"/code/" {
+		t.Fatalf("one match: %q", got)
+	}
+	m = press(m, "a")
+	if got := m.dlg.inputs[0].Value(); got != root+"/code/a" {
+		t.Fatalf("typed: %q", got)
+	}
+	if strings.Join(m.dlg.sugg, ",") != "api,apps" {
+		t.Fatalf("suggestions %v", m.dlg.sugg)
+	}
+	m = press(m, "tab") // common prefix
+	if got := m.dlg.inputs[0].Value(); got != root+"/code/ap" {
+		t.Fatalf("prefix: %q", got)
+	}
+	m = press(m, "tab", "tab") // cycle
+	if got := m.dlg.inputs[0].Value(); got != root+"/code/apps/" {
+		t.Fatalf("cycle: %q", got)
+	}
+	if v := plain(m); !strings.Contains(v, "api/") || !strings.Contains(v, "tab complete") {
+		t.Errorf("view:\n%s", v)
+	}
+	m.dlg.inputs[0].SetValue(root + "/d")
+	m = press(m, "tab") // case-insensitive, hidden folders skipped
+	if got := m.dlg.inputs[0].Value(); got != root+"/Documents/" {
+		t.Fatalf("case: %q", got)
+	}
+	m.dlg.inputs[0].SetValue(root + "/nothing")
+	m = press(m, "tab") // no match: next field
+	if m.dlg.focus != 2 {
+		t.Fatalf("focus %d", m.dlg.focus)
 	}
 }

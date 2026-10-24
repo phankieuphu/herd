@@ -467,3 +467,39 @@ func TestTrackerTransitions(t *testing.T) {
 		t.Fatalf("restart produced %v", r.Transitions)
 	}
 }
+
+func TestBindKeys(t *testing.T) {
+	h := newHarness(t)
+	_, err := h.eng.T.Run("new-session", "-d", "-s", "x")
+	h.must(err)
+	keys := func(table, key string) string {
+		out, _ := h.eng.T.Run("list-keys", "-T", table, key)
+		return out
+	}
+	cfg := *h.eng.Cfg.Get()
+	cfg.Integrations.Tmux.BindKeys = true
+	h.eng.Cfg = config.NewStore(&cfg)
+	h.eng.BindKeys()
+	if !strings.Contains(keys("prefix", "C-h"), "focus-sidebar") || !strings.Contains(keys("prefix", "C-j"), " jump") {
+		t.Fatal("default keys not bound")
+	}
+
+	// a changed setting moves the key and drops the old one
+	cfg.Integrations.Tmux.FocusKey = "M-h"
+	cfg.Integrations.Tmux.JumpKey = ""
+	h.eng.Cfg = config.NewStore(&cfg)
+	h.eng.BindKeys()
+	if !strings.Contains(keys("root", "M-h"), "focus-sidebar") {
+		t.Fatal("M-h not bound")
+	}
+	if strings.Contains(keys("prefix", "C-h"), "focus-sidebar") || strings.Contains(keys("prefix", "C-j"), "jump") {
+		t.Fatal("old keys left behind")
+	}
+
+	cfg.Integrations.Tmux.BindKeys = false
+	h.eng.Cfg = config.NewStore(&cfg)
+	h.eng.BindKeys()
+	if strings.Contains(keys("root", "M-h"), "focus-sidebar") {
+		t.Fatal("bind_keys = false should remove herd's keys")
+	}
+}
