@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -465,5 +466,58 @@ func TestTrackerTransitions(t *testing.T) {
 	s := h.snap()
 	if r := tr2.Update(cfg, s, h.eng.Capture([]string{a}), time.Now()); len(r.Transitions) != 0 {
 		t.Fatalf("restart produced %v", r.Transitions)
+	}
+}
+
+func TestBindKeys(t *testing.T) {
+	h := newHarness(t)
+	_, err := h.eng.T.Run("new-session", "-d", "-s", "x")
+	h.must(err)
+	keys := func(table, key string) string {
+		out, _ := h.eng.T.Run("list-keys", "-T", table, key)
+		return out
+	}
+	cfg := *h.eng.Cfg.Get()
+	cfg.Integrations.Tmux.BindKeys = true
+	h.eng.Cfg = config.NewStore(&cfg)
+	h.eng.BindKeys()
+	if !strings.Contains(keys("prefix", "C-h"), "focus-sidebar") || !strings.Contains(keys("prefix", "C-j"), " jump") {
+		t.Fatal("default keys not bound")
+	}
+
+	// a changed setting moves the key and drops the old one
+	cfg.Integrations.Tmux.FocusKey = "M-h"
+	cfg.Integrations.Tmux.JumpKey = ""
+	h.eng.Cfg = config.NewStore(&cfg)
+	h.eng.BindKeys()
+	if !strings.Contains(keys("root", "M-h"), "focus-sidebar") {
+		t.Fatal("M-h not bound")
+	}
+	if strings.Contains(keys("prefix", "C-h"), "focus-sidebar") || strings.Contains(keys("prefix", "C-j"), "jump") {
+		t.Fatal("old keys left behind")
+	}
+
+	cfg.Integrations.Tmux.BindKeys = false
+	h.eng.Cfg = config.NewStore(&cfg)
+	h.eng.BindKeys()
+	if strings.Contains(keys("root", "M-h"), "focus-sidebar") {
+		t.Fatal("bind_keys = false should remove herd's keys")
+	}
+}
+
+func TestRestartSidebar(t *testing.T) {
+	h := newHarness(t)
+	h.must(h.eng.RestartSidebar()) // no herd window: nothing to do
+	h.must(h.eng.Create(160, 40, h.dir))
+	before := h.snap().Sidebar()
+	h.must(h.eng.RestartSidebar())
+	after := h.snap().Sidebar()
+	if after == nil || after.ID != before.ID {
+		t.Fatalf("sidebar lost its role: %+v", after)
+	}
+	pid, err := h.eng.T.Run("display-message", "-p", "-t", after.ID, "#{pane_pid}")
+	h.must(err)
+	if strings.TrimSpace(pid) == strconv.Itoa(before.PID) {
+		t.Fatal("sidebar process was not restarted")
 	}
 }

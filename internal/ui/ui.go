@@ -18,6 +18,7 @@ import (
 	"github.com/phankieuphu/herd/internal/limits"
 	"github.com/phankieuphu/herd/internal/model"
 	"github.com/phankieuphu/herd/internal/notify"
+	"github.com/phankieuphu/herd/internal/tmux"
 )
 
 type row struct {
@@ -353,7 +354,7 @@ func (m *Model) notifications(cfg *config.Config, s *core.Snapshot, ts []core.Tr
 		if t.To == model.Done && t.From == model.Background {
 			body = "done (background work finished)"
 		}
-		evs = append(evs, notify.Event{Title: t.Title, Body: body, State: state})
+		evs = append(evs, notify.Event{Title: t.Title, Body: body, State: state, Pane: t.Pane})
 	}
 	if len(evs) == 0 {
 		return nil
@@ -366,7 +367,7 @@ func (m *Model) notifications(cfg *config.Config, s *core.Snapshot, ts []core.Tr
 				notify.Tmux(eng.T, clients, ev)
 			}
 			if cfg.Notify.Desktop {
-				_ = notify.Desktop(ev)
+				_ = notify.Desktop(ev, notify.TerminalApp(cfg.Notify.App), showCmd(eng, ev.Pane))
 			}
 			if cfg.Notify.Push.Enabled && away {
 				if err := notify.Push(context.Background(), cfg.Notify.Push, ev); err != nil {
@@ -756,6 +757,7 @@ func (m *Model) openNew(preset string) {
 		newInput("first prompt (optional)", "", w),
 	}
 	d.labels = []string{"agent", "folder", "name", "prompt", "worktree"}
+	d.folderSuggest()
 	m.dlg = d
 }
 
@@ -824,6 +826,9 @@ func (m Model) dialogKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 			d.complete()
 			return m, nil
 		}
+		if d.kind == dlgNew && d.focus == 1 && key == "tab" && d.folderComplete(1) {
+			return m, nil
+		}
 		if d.kind == dlgFilter {
 			if key == "down" {
 				m.move(1)
@@ -832,6 +837,9 @@ func (m Model) dialogKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		if d.fields() > 1 {
 			d.focus = (d.focus + 1) % d.fields()
+			if d.kind == dlgNew {
+				d.folderSuggest()
+			}
 			return m, d.focusInput()
 		}
 		return m, nil
@@ -842,8 +850,15 @@ func (m Model) dialogKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+		if d.kind == dlgNew && d.focus == 1 && key == "shift+tab" && d.cycling {
+			d.folderComplete(-1)
+			return m, nil
+		}
 		if d.fields() > 1 {
 			d.focus = (d.focus - 1 + d.fields()) % d.fields()
+			if d.kind == dlgNew {
+				d.folderSuggest()
+			}
 			return m, d.focusInput()
 		}
 		return m, nil
@@ -870,6 +885,9 @@ func (m Model) dialogKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	d.inputs[i], cmd = d.inputs[i].Update(k)
 	if d.kind == dlgFilter {
 		m.rebuild()
+	}
+	if d.kind == dlgNew && d.focus == 1 {
+		d.folderSuggest()
 	}
 	return m, cmd
 }
@@ -992,4 +1010,14 @@ func (m Model) rowAt(y int) int {
 		line += rh
 	}
 	return -1
+}
+
+// showCmd is the shell command that shows an agent in the herd window. It
+// runs outside tmux (from a notification click), so it carries PATH along.
+func showCmd(eng *core.Engine, pane string) string {
+	cmd := tmux.Quote(eng.Self) + " show " + tmux.Quote(pane)
+	if eng.T.Socket != "" {
+		cmd = "HERD_TMUX_SOCKET=" + tmux.Quote(eng.T.Socket) + " " + cmd
+	}
+	return "PATH=" + tmux.Quote(os.Getenv("PATH")) + " " + cmd
 }

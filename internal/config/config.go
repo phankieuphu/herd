@@ -63,6 +63,22 @@ type LimitRings struct {
 type TmuxIntegration struct {
 	SessionScript string `toml:"session_script"`
 	BindKeys      bool   `toml:"bind_keys"`
+	FocusKey      string `toml:"focus_key"`
+	JumpKey       string `toml:"jump_key"`
+}
+
+// KeySpec splits a key setting into a tmux key table and key: "prefix C-h"
+// is C-h after the prefix, "M-h" is M-h on its own. ok is false for an
+// empty or malformed setting.
+func KeySpec(s string) (table, key string, ok bool) {
+	f := strings.Fields(s)
+	switch {
+	case len(f) == 1 && f[0] != "prefix":
+		return "root", f[0], true
+	case len(f) == 2 && f[0] == "prefix":
+		return "prefix", f[1], true
+	}
+	return "", "", false
 }
 
 type Integrations struct {
@@ -89,6 +105,7 @@ type Push struct {
 
 type Notify struct {
 	Desktop bool     `toml:"desktop"`
+	App     string   `toml:"app"` // macOS bundle id to open on click; empty = the terminal herd started in
 	Tmux    bool     `toml:"tmux"`
 	On      []string `toml:"on"` // needs_you, done, exited
 	Push    Push     `toml:"push"`
@@ -141,7 +158,7 @@ func Default() *Config {
 	return &Config{
 		Sidebar: Sidebar{Session: "herd", Width: 34, Poll: Duration{time.Second}, Preview: true, PreviewLines: 8},
 		Integrations: Integrations{
-			Tmux: TmuxIntegration{BindKeys: true},
+			Tmux: TmuxIntegration{BindKeys: true, FocusKey: "prefix C-h", JumpKey: "prefix C-j"},
 		},
 		Defaults: Defaults{Agent: "claude", Worktree: true, BranchPrefix: "herd/"},
 		Agents:   BuiltinAgents(),
@@ -253,6 +270,11 @@ func (c *Config) validate() error {
 			if _, ok := c.Agents[p.Agent]; !ok {
 				return fmt.Errorf("presets.%s: unknown agent %q", name, p.Agent)
 			}
+		}
+	}
+	for name, k := range map[string]string{"focus_key": c.Integrations.Tmux.FocusKey, "jump_key": c.Integrations.Tmux.JumpKey} {
+		if _, _, ok := KeySpec(k); k != "" && !ok {
+			return fmt.Errorf("integrations.tmux.%s %q: use a tmux key like \"M-h\" or \"prefix C-h\"", name, k)
 		}
 	}
 	switch c.Notify.Push.Provider {
@@ -398,11 +420,14 @@ const Example = `# herd settings. herd reloads this file when it changes.
 # file = "~/.cache/limit-rings.json"
 
 [integrations.tmux]
-# bind_keys = true        # prefix C-h = sidebar, prefix C-j = next agent that needs you
+# bind_keys = true        # false: add no tmux keys
+# focus_key = "prefix C-h"   # go to the sidebar; "M-h" = Option/Alt+h without the prefix, "" = none
+# jump_key = "prefix C-j"    # go to the next agent that needs you
 # session_script = ""     # rename/group script
 
 [notify]
-# desktop = true
+# desktop = true          # on macOS, brew install terminal-notifier so a click opens your terminal
+# app = ""                # terminal to open on click, e.g. "com.googlecode.iterm2"; "" = the one herd started in
 # tmux = true
 # on = ["needs_you", "done"]
 

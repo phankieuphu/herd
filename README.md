@@ -46,6 +46,17 @@ Or download a binary from [Releases](https://github.com/phankieuphu/herd/release
 
 You also need tmux (`brew install tmux` or `sudo apt install tmux`).
 
+On macOS, also `brew install terminal-notifier`. Without it, clicking a herd notification opens Script Editor instead of your terminal.
+
+### Update
+
+```sh
+herd update          # download the latest release and restart the sidebar
+herd update main     # build the newest code on main instead (needs Go)
+```
+
+`herd update` replaces the herd binary it runs from, so it works the same whether you used `go install` or a downloaded binary. Your agents keep running.
+
 ## Quick start
 
 ```sh
@@ -74,6 +85,7 @@ herd ls
 | `space` / `l` | show the agent, stay in the sidebar |
 | `tab` / `shift+tab` | next / previous agent that needs you |
 | `n` / `N` | new agent / new agent from a preset |
+| `tab` in the folder field | complete the folder name (press again to step through matches) |
 | `a` / `A` | allow / deny (only when it needs you) |
 | `m` | type a message to the agent |
 | `r` | rename the agent or group |
@@ -97,6 +109,8 @@ Two tmux keys are added (turn them off with `bind_keys = false`):
 
 - `prefix C-h` — back to the sidebar
 - `prefix C-j` — jump to the next agent that needs you
+
+Change them with `focus_key` and `jump_key` in `[integrations.tmux]`. Write `"prefix C-h"` for a key pressed after the tmux prefix, or just `"M-h"` for a key that works on its own (`M-` is Option/Alt; on macOS turn on "Option as Meta" in your terminal). `""` turns a single key off. The new keys apply the next time you run `herd`.
 
 ## How it works
 
@@ -182,6 +196,7 @@ branch_prefix = "herd/"
 
 [notify]
 desktop = true                   # macOS notification center / notify-send
+app = ""                         # macOS: terminal to open on click, e.g. "com.googlecode.iterm2"
 tmux = true                      # message in the tmux status line
 on = ["needs_you", "done"]       # also: "exited"
 
@@ -191,6 +206,8 @@ file = "~/.cache/limit-rings.json"
 
 [integrations.tmux]
 bind_keys = true
+focus_key = "prefix C-h"         # go to the sidebar; "M-h" = Option+h, no prefix
+jump_key = "prefix C-j"          # go to the next agent that needs you
 session_script = ""              # rename/group script: called as `rename <shell_pid> <group> <title>` and `group <session_id> <old> <new>`
 ```
 
@@ -250,6 +267,7 @@ herd uninstall-hooks
 herd init-config
 herd doctor               check your setup
 herd quit                 close the herd window (agents keep running)
+herd update [ref]         update to the latest release, or build a branch/tag/commit with Go
 ```
 
 ## Troubleshooting

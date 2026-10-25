@@ -211,6 +211,21 @@ func (e *Engine) sidebarCmd() string {
 	return "while :; do " + tmux.Quote(e.Self) + " sidebar && break; sleep 1; done"
 }
 
+// RestartSidebar restarts the sidebar process, so a new herd binary takes
+// over. Everything the sidebar shows lives in tmux, so nothing is lost.
+func (e *Engine) RestartSidebar() error {
+	s, err := e.Snapshot()
+	if err != nil {
+		return err
+	}
+	sb := s.Sidebar()
+	if sb == nil {
+		return nil
+	}
+	_, err = e.T.Run("respawn-pane", "-k", "-t", sb.ID, e.sidebarCmd())
+	return err
+}
+
 func (e *Engine) placeholderCmd() string { return tmux.Quote(e.Self) + " placeholder" }
 
 // Create makes the main session if it does not exist. cols/rows size the
@@ -249,16 +264,32 @@ func (e *Engine) Create(cols, rows int, dir string) error {
 	return nil
 }
 
-// BindKeys installs prefix C-h (focus sidebar) and prefix C-j (jump).
+// BindKeys installs the focus-sidebar and jump keys from the settings
+// (prefix C-h and prefix C-j by default). Keys bound by an earlier run are
+// removed first, so a changed setting does not leave the old key behind.
 func (e *Engine) BindKeys() {
-	if !e.Cfg.Get().Integrations.Tmux.BindKeys {
-		return
+	t := e.Cfg.Get().Integrations.Tmux
+	var cmds [][]string
+	old, _ := e.T.Run("show-options", "-gqv", model.OptKeys)
+	for _, l := range tmux.Lines(old) {
+		if f := strings.Fields(l); len(f) == 2 {
+			cmds = append(cmds, []string{"unbind-key", "-q", "-T", f[0], f[1]})
+		}
 	}
-	self := tmux.Quote(e.Self)
-	_, _ = e.T.Batch(
-		[]string{"bind-key", "-T", "prefix", "C-h", "run-shell", "-b", self + " focus-sidebar"},
-		[]string{"bind-key", "-T", "prefix", "C-j", "run-shell", "-b", self + " jump"},
-	)
+	var bound []string
+	if t.BindKeys {
+		self := tmux.Quote(e.Self)
+		for _, b := range []struct{ spec, cmd string }{{t.FocusKey, "focus-sidebar"}, {t.JumpKey, "jump"}} {
+			table, key, ok := config.KeySpec(b.spec)
+			if !ok {
+				continue
+			}
+			cmds = append(cmds, []string{"bind-key", "-T", table, key, "run-shell", "-b", self + " " + b.cmd})
+			bound = append(bound, table+" "+key)
+		}
+	}
+	cmds = append(cmds, []string{"set-option", "-g", model.OptKeys, strings.Join(bound, "\n")})
+	_, _ = e.T.Batch(cmds...)
 }
 
 // Repair fixes a broken layout: a missing sidebar or stage pane, sessions

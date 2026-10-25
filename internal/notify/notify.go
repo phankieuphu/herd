@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -21,12 +22,22 @@ type Event struct {
 	Title string // agent name
 	Body  string // "needs you", "done"
 	State string // needs_you | done | exited
+	Pane  string // agent pane, for the click action
 }
 
 // Desktop shows a desktop notification when a notifier is available.
-func Desktop(ev Event) error {
+//
+// On macOS it uses terminal-notifier when installed: clicking the
+// notification brings app (a bundle id, see TerminalApp) to the front and
+// runs the shell command onClick. Without it, osascript is used; macOS
+// shows those notifications as Script Editor's, so a click opens Script
+// Editor.
+func Desktop(ev Event, app, onClick string) error {
 	switch runtime.GOOS {
 	case "darwin":
+		if p, err := exec.LookPath("terminal-notifier"); err == nil {
+			return exec.Command(p, notifierArgs(ev, app, onClick)...).Run()
+		}
 		script := fmt.Sprintf("display notification %s with title %s", osaQuote(ev.Body), osaQuote("herd · "+ev.Title))
 		return exec.Command("osascript", "-e", script).Run()
 	default:
@@ -35,6 +46,41 @@ func Desktop(ev Event) error {
 		}
 	}
 	return nil
+}
+
+func notifierArgs(ev Event, app, onClick string) []string {
+	args := []string{"-title", "herd · " + ev.Title, "-message", ev.Body, "-group", "herd-" + ev.Pane}
+	if app != "" {
+		args = append(args, "-activate", app)
+	}
+	if onClick != "" {
+		args = append(args, "-execute", onClick)
+	}
+	return args
+}
+
+// TerminalApp is the bundle id of the terminal to bring to the front when a
+// notification is clicked: the setting if given, else the app herd was
+// started from (macOS passes it down as __CFBundleIdentifier), else
+// Terminal.app.
+func TerminalApp(setting string) string {
+	if setting != "" {
+		return setting
+	}
+	if id := os.Getenv("__CFBundleIdentifier"); id != "" {
+		return id
+	}
+	return "com.apple.Terminal"
+}
+
+// HasClickAction reports whether clicking a desktop notification can open
+// the agent (on macOS this needs terminal-notifier).
+func HasClickAction() bool {
+	if runtime.GOOS != "darwin" {
+		return true
+	}
+	_, err := exec.LookPath("terminal-notifier")
+	return err == nil
 }
 
 func osaQuote(s string) string {
