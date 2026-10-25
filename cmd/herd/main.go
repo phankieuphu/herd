@@ -3,13 +3,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
+	"runtime"
+	"runtime/debug"
 	"strings"
 	"syscall"
 	"text/tabwriter"
@@ -24,6 +28,8 @@ import (
 	"github.com/phankieuphu/herd/internal/install"
 	"github.com/phankieuphu/herd/internal/limits"
 	"github.com/phankieuphu/herd/internal/model"
+	"github.com/phankieuphu/herd/internal/notify"
+	"github.com/phankieuphu/herd/internal/selfupdate"
 	"github.com/phankieuphu/herd/internal/tmux"
 	"github.com/phankieuphu/herd/internal/ui"
 )
@@ -46,6 +52,8 @@ Usage:
   herd init-config          write a commented ~/.herd/settings.toml
   herd doctor               check your setup
   herd quit                 close the herd window (agents keep running)
+  herd update [ref]         update to the latest release, or build a branch,
+                            tag or commit (needs Go), e.g. herd update main
   herd version
 
 Run 'herd new -h' for the flags of new.
@@ -93,8 +101,10 @@ func loadEngine() (*core.Engine, *config.Store, error) {
 func run(cmd string, args []string) error {
 	switch cmd {
 	case "version", "--version", "-v":
-		fmt.Println("herd", version)
+		fmt.Println("herd", currentVersion())
 		return nil
+	case "update", "upgrade":
+		return cmdUpdate(args)
 	case "help", "-h", "--help":
 		fmt.Print(usage)
 		return nil
@@ -572,6 +582,9 @@ func cmdDoctor(eng *core.Engine, cfg *config.Config) error {
 	if _, err := exec.LookPath("codex"); err == nil {
 		ok(install.CodexInstalled(), "Codex notify (herd install-hooks --codex)")
 	}
+	if cfg.Notify.Desktop && !notify.HasClickAction() {
+		ok(false, "desktop notifications: brew install terminal-notifier, so clicking one opens your terminal (now it opens Script Editor)")
+	}
 	if lr := cfg.Integrations.LimitRings; lr.Enabled {
 		r := limits.Reader{Path: config.Expand(lr.File)}
 		ps, err := r.Read(time.Now())
@@ -584,6 +597,69 @@ func cmdDoctor(eng *core.Engine, cfg *config.Config) error {
 		ok(s.Sidebar() != nil && s.Stage() != nil, fmt.Sprintf("herd window %q running with %d agent(s)", s.Main, len(s.Agents())))
 	} else {
 		ok(true, "herd window not running (run herd)")
+	}
+	return nil
+}
+
+// currentVersion is the version set at build time, or for go install
+// builds the module version Go recorded.
+func currentVersion() string {
+	if version != "dev" {
+		return version
+	}
+	if bi, ok := debug.ReadBuildInfo(); ok && bi.Main.Version != "" && bi.Main.Version != "(devel)" {
+		return bi.Main.Version
+	}
+	return version
+}
+
+func cmdUpdate(args []string) error {
+	ref := "latest"
+	if len(args) > 0 {
+		ref = args[0]
+	}
+	self, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	if r, err := filepath.EvalSymlinks(self); err == nil {
+		self = r
+	}
+	cur := currentVersion()
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+	if ref == "latest" {
+		tag, err := selfupdate.Latest(ctx)
+		if err != nil {
+			return err
+		}
+		if selfupdate.Same(cur, tag) {
+			fmt.Println("herd is up to date:", tag)
+			return nil
+		}
+		fmt.Printf("downloading herd %s for %s/%s ...\n", tag, runtime.GOOS, runtime.GOARCH)
+		bin, err := selfupdate.Download(ctx, tag, runtime.GOOS, runtime.GOARCH)
+		if err != nil {
+			return err
+		}
+		if err := selfupdate.Replace(self, bin); err != nil {
+			return err
+		}
+		ref = tag
+	} else {
+		fmt.Printf("building herd@%s with go install ...\n", ref)
+		if err := selfupdate.GoInstall(ref, filepath.Dir(self)); err != nil {
+			return err
+		}
+	}
+	fmt.Printf("updated herd %s -> %s (%s)\n", cur, ref, self)
+	// a running herd window switches to the new binary
+	if _, err := exec.LookPath("tmux"); err == nil {
+		if eng, _, err := loadEngine(); err == nil && eng.T.HasSession(eng.Main()) {
+			if err := eng.RestartSidebar(); err == nil {
+				fmt.Println("restarted the herd sidebar")
+			}
+		}
 	}
 	return nil
 }

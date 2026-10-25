@@ -46,6 +46,17 @@ Or download a binary from [Releases](https://github.com/phankieuphu/herd/release
 
 You also need tmux (`brew install tmux` or `sudo apt install tmux`).
 
+On macOS, also `brew install terminal-notifier`. Without it, clicking a herd notification opens Script Editor instead of your terminal.
+
+### Update
+
+```sh
+herd update          # download the latest release and restart the sidebar
+herd update main     # build the newest code on main instead (needs Go)
+```
+
+`herd update` replaces the herd binary it runs from, so it works the same whether you used `go install` or a downloaded binary. Your agents keep running.
+
 ## Quick start
 
 ```sh
@@ -185,6 +196,7 @@ branch_prefix = "herd/"
 
 [notify]
 desktop = true                   # macOS notification center / notify-send
+app = ""                         # macOS: terminal to open on click, e.g. "com.googlecode.iterm2"
 tmux = true                      # message in the tmux status line
 on = ["needs_you", "done"]       # also: "exited"
 
@@ -255,6 +267,7 @@ herd uninstall-hooks
 herd init-config
 herd doctor               check your setup
 herd quit                 close the herd window (agents keep running)
+herd update [ref]         update to the latest release, or build a branch/tag/commit with Go
 ```
 
 ## Troubleshooting

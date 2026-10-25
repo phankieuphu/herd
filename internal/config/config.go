@@ -105,6 +105,7 @@ type Push struct {
 
 type Notify struct {
 	Desktop bool     `toml:"desktop"`
+	App     string   `toml:"app"` // macOS bundle id to open on click; empty = the terminal herd started in
 	Tmux    bool     `toml:"tmux"`
 	On      []string `toml:"on"` // needs_you, done, exited
 	Push    Push     `toml:"push"`
@@ -425,7 +426,8 @@ const Example = `# herd settings. herd reloads this file when it changes.
 # session_script = ""     # rename/group script
 
 [notify]
-# desktop = true
+# desktop = true          # on macOS, brew install terminal-notifier so a click opens your terminal
+# app = ""                # terminal to open on click, e.g. "com.googlecode.iterm2"; "" = the one herd started in
 # tmux = true
 # on = ["needs_you", "done"]
 

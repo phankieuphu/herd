@@ -18,6 +18,7 @@ import (
 	"github.com/phankieuphu/herd/internal/limits"
 	"github.com/phankieuphu/herd/internal/model"
 	"github.com/phankieuphu/herd/internal/notify"
+	"github.com/phankieuphu/herd/internal/tmux"
 )
 
 type row struct {
@@ -353,7 +354,7 @@ func (m *Model) notifications(cfg *config.Config, s *core.Snapshot, ts []core.Tr
 		if t.To == model.Done && t.From == model.Background {
 			body = "done (background work finished)"
 		}
-		evs = append(evs, notify.Event{Title: t.Title, Body: body, State: state})
+		evs = append(evs, notify.Event{Title: t.Title, Body: body, State: state, Pane: t.Pane})
 	}
 	if len(evs) == 0 {
 		return nil
@@ -366,7 +367,7 @@ func (m *Model) notifications(cfg *config.Config, s *core.Snapshot, ts []core.Tr
 				notify.Tmux(eng.T, clients, ev)
 			}
 			if cfg.Notify.Desktop {
-				_ = notify.Desktop(ev)
+				_ = notify.Desktop(ev, notify.TerminalApp(cfg.Notify.App), showCmd(eng, ev.Pane))
 			}
 			if cfg.Notify.Push.Enabled && away {
 				if err := notify.Push(context.Background(), cfg.Notify.Push, ev); err != nil {
@@ -1009,4 +1010,14 @@ func (m Model) rowAt(y int) int {
 		line += rh
 	}
 	return -1
+}
+
+// showCmd is the shell command that shows an agent in the herd window. It
+// runs outside tmux (from a notification click), so it carries PATH along.
+func showCmd(eng *core.Engine, pane string) string {
+	cmd := tmux.Quote(eng.Self) + " show " + tmux.Quote(pane)
+	if eng.T.Socket != "" {
+		cmd = "HERD_TMUX_SOCKET=" + tmux.Quote(eng.T.Socket) + " " + cmd
+	}
+	return "PATH=" + tmux.Quote(os.Getenv("PATH")) + " " + cmd
 }

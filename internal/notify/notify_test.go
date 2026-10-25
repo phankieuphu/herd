@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -65,5 +66,27 @@ func TestPushErrors(t *testing.T) {
 func TestOsaQuote(t *testing.T) {
 	if got := osaQuote(`say "hi" \ bye`); got != `"say \"hi\" \\ bye"` {
 		t.Fatal(got)
+	}
+}
+
+func TestNotifierArgs(t *testing.T) {
+	got := strings.Join(notifierArgs(Event{Title: "fix auth", Body: "done", Pane: "%3"}, "com.googlecode.iterm2", "herd show %3"), "|")
+	want := "-title|herd · fix auth|-message|done|-group|herd-%3|-activate|com.googlecode.iterm2|-execute|herd show %3"
+	if got != want {
+		t.Fatalf("got %q", got)
+	}
+	if got := strings.Join(notifierArgs(Event{Title: "x", Body: "y"}, "", ""), "|"); strings.Contains(got, "-activate") || strings.Contains(got, "-execute") {
+		t.Fatalf("empty app/click: %q", got)
+	}
+}
+
+func TestTerminalApp(t *testing.T) {
+	t.Setenv("__CFBundleIdentifier", "com.mitchellh.ghostty")
+	if TerminalApp("") != "com.mitchellh.ghostty" || TerminalApp("com.googlecode.iterm2") != "com.googlecode.iterm2" {
+		t.Fatal("bundle id")
+	}
+	t.Setenv("__CFBundleIdentifier", "")
+	if TerminalApp("") != "com.apple.Terminal" {
+		t.Fatal("fallback")
 	}
 }

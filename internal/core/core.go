@@ -211,6 +211,21 @@ func (e *Engine) sidebarCmd() string {
 	return "while :; do " + tmux.Quote(e.Self) + " sidebar && break; sleep 1; done"
 }
 
+// RestartSidebar restarts the sidebar process, so a new herd binary takes
+// over. Everything the sidebar shows lives in tmux, so nothing is lost.
+func (e *Engine) RestartSidebar() error {
+	s, err := e.Snapshot()
+	if err != nil {
+		return err
+	}
+	sb := s.Sidebar()
+	if sb == nil {
+		return nil
+	}
+	_, err = e.T.Run("respawn-pane", "-k", "-t", sb.ID, e.sidebarCmd())
+	return err
+}
+
 func (e *Engine) placeholderCmd() string { return tmux.Quote(e.Self) + " placeholder" }
 
 // Create makes the main session if it does not exist. cols/rows size the

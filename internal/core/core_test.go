@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -501,5 +502,22 @@ func TestBindKeys(t *testing.T) {
 	h.eng.BindKeys()
 	if strings.Contains(keys("root", "M-h"), "focus-sidebar") {
 		t.Fatal("bind_keys = false should remove herd's keys")
+	}
+}
+
+func TestRestartSidebar(t *testing.T) {
+	h := newHarness(t)
+	h.must(h.eng.RestartSidebar()) // no herd window: nothing to do
+	h.must(h.eng.Create(160, 40, h.dir))
+	before := h.snap().Sidebar()
+	h.must(h.eng.RestartSidebar())
+	after := h.snap().Sidebar()
+	if after == nil || after.ID != before.ID {
+		t.Fatalf("sidebar lost its role: %+v", after)
+	}
+	pid, err := h.eng.T.Run("display-message", "-p", "-t", after.ID, "#{pane_pid}")
+	h.must(err)
+	if strings.TrimSpace(pid) == strconv.Itoa(before.PID) {
+		t.Fatal("sidebar process was not restarted")
 	}
 }
