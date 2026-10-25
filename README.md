@@ -74,6 +74,7 @@ herd ls
 | `space` / `l` | show the agent, stay in the sidebar |
 | `tab` / `shift+tab` | next / previous agent that needs you |
 | `n` / `N` | new agent / new agent from a preset |
+| `tab` in the folder field | complete the folder name (press again to step through matches) |
 | `a` / `A` | allow / deny (only when it needs you) |
 | `m` | type a message to the agent |
 | `r` | rename the agent or group |
@@ -97,6 +98,8 @@ Two tmux keys are added (turn them off with `bind_keys = false`):
 
 - `prefix C-h` — back to the sidebar
 - `prefix C-j` — jump to the next agent that needs you
+
+Change them with `focus_key` and `jump_key` in `[integrations.tmux]`. Write `"prefix C-h"` for a key pressed after the tmux prefix, or just `"M-h"` for a key that works on its own (`M-` is Option/Alt; on macOS turn on "Option as Meta" in your terminal). `""` turns a single key off. The new keys apply the next time you run `herd`.
 
 ## How it works
 
@@ -191,6 +194,8 @@ file = "~/.cache/limit-rings.json"
 
 [integrations.tmux]
 bind_keys = true
+focus_key = "prefix C-h"         # go to the sidebar; "M-h" = Option+h, no prefix
+jump_key = "prefix C-j"          # go to the next agent that needs you
 session_script = ""              # rename/group script: called as `rename <shell_pid> <group> <title>` and `group <session_id> <old> <new>`
 ```
 

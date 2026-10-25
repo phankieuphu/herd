@@ -78,8 +78,28 @@ away_after = "5m"
 	if !c.Integrations.LimitRings.Enabled || c.Notify.Push.AwayAfter.Duration != 5*time.Minute || c.Notify.Push.Provider != "telegram" {
 		t.Fatal("integrations / push")
 	}
-	if !c.Integrations.Tmux.BindKeys {
+	if !c.Integrations.Tmux.BindKeys || c.Integrations.Tmux.FocusKey != "prefix C-h" {
 		t.Fatal("bind_keys default lost")
+	}
+}
+
+func TestKeySpec(t *testing.T) {
+	for s, want := range map[string]string{
+		"prefix C-h": "prefix C-h", "M-h": "root M-h", "  M-Left ": "root M-Left",
+		"": "", "prefix": "", "a b": "", "prefix C-h x": "",
+	} {
+		table, key, ok := KeySpec(s)
+		got := ""
+		if ok {
+			got = table + " " + key
+		}
+		if got != want {
+			t.Errorf("KeySpec(%q) = %q, want %q", s, got, want)
+		}
+	}
+	c, err := Parse("[integrations.tmux]\nfocus_key = \"M-h\"\njump_key = \"\"\n")
+	if err != nil || c.Integrations.Tmux.FocusKey != "M-h" || c.Integrations.Tmux.JumpKey != "" {
+		t.Fatalf("keys: %+v %v", c.Integrations.Tmux, err)
 	}
 }
 
@@ -95,6 +115,8 @@ session = "a.b"`,
 provider = "sms"`,
 		`[sidebar]
 poll = "soon"`,
+		`[integrations.tmux]
+focus_key = "ctrl h"`,
 		`not toml`,
 	} {
 		if _, err := Parse(s); err == nil {

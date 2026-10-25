@@ -68,6 +68,7 @@ const (
 	// global options
 	OptGroups    = "@herd_groups"    // group order, "\n" separated
 	OptCollapsed = "@herd_collapsed" // collapsed groups, "\n" separated
+	OptKeys      = "@herd_keys"      // keys herd bound, "table key" per line
 )
 
 // RolePlaceholder marks the pane that keeps a slot when its agent is shown elsewhere.
