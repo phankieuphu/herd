@@ -325,11 +325,14 @@ func (m Model) dialogLines() []string {
 			if f == 1 && d.focus == 1 {
 				out = append(out, folderLines(d, w)...)
 			}
+			if f == 3 && d.focus == 3 {
+				out = append(out, skillLines(d, w, "           ")...)
+			}
 		}
 		if d.target != "" {
 			out = append(out, sDim.Render("  group: "+d.target))
 		}
-		if d.focus == 1 {
+		if d.focus == 1 || d.focus == 3 && len(d.skillSugg) > 0 {
 			out = append(out, sDim.Render("  tab complete · ↓ next · ⏎ start · esc"))
 		} else {
 			out = append(out, sDim.Render("  tab next · ←→ change · ⏎ start · esc"))
@@ -359,6 +362,9 @@ func (m Model) dialogLines() []string {
 		}
 		d.inputs[0].Width = w - 4
 		out = append(out, " "+sAccent.Render("› ")+d.inputs[0].View())
+		if d.kind == dlgMessage {
+			out = append(out, skillLines(d, w, "   ")...)
+		}
 		if d.kind == dlgGroup && len(d.options) > 0 {
 			out = append(out, sDim.Render(fit(" groups: "+strings.Join(d.options, ", "), w)))
 		}
@@ -390,6 +396,37 @@ func folderLines(d *dialog, w int) []string {
 	}
 	if more := len(d.sugg) - end; more > 0 {
 		out = append(out, sFaint.Render(fmt.Sprintf("           +%d more", more)))
+	}
+	return out
+}
+
+// skillLines lists up to five skill suggestions with their descriptions,
+// keeping the one picked by tab in view.
+func skillLines(d *dialog, w int, indent string) []string {
+	const show = 5
+	if len(d.skillSugg) == 0 {
+		return nil
+	}
+	start := 0
+	if d.suggIdx >= show {
+		start = d.suggIdx - show + 1
+	}
+	end := min(start+show, len(d.skillSugg))
+	var out []string
+	for i := start; i < end; i++ {
+		s := d.skillSugg[i]
+		style := sDim
+		if i == d.suggIdx {
+			style = sAccent
+		}
+		line := style.Render(indent + s.name)
+		if s.desc != "" {
+			line += sFaint.Render("  " + s.desc)
+		}
+		out = append(out, fit(line, w))
+	}
+	if more := len(d.skillSugg) - end; more > 0 {
+		out = append(out, sFaint.Render(fmt.Sprintf("%s+%d more", indent, more)))
 	}
 	return out
 }

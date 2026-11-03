@@ -85,6 +85,8 @@ func press(m Model, keys ...string) Model {
 			msg = tea.KeyMsg{Type: tea.KeyTab}
 		case "down":
 			msg = tea.KeyMsg{Type: tea.KeyDown}
+		case "shift+tab":
+			msg = tea.KeyMsg{Type: tea.KeyShiftTab}
 		default:
 			msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)}
 		}
@@ -252,5 +254,85 @@ func TestFolderComplete(t *testing.T) {
 	m = press(m, "tab") // no match: next field
 	if m.dlg.focus != 2 {
 		t.Fatalf("focus %d", m.dlg.focus)
+	}
+}
+
+func writeFile(t *testing.T, path, data string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSkillComplete(t *testing.T) {
+	user, proj := t.TempDir(), t.TempDir()
+	t.Setenv("CLAUDE_CONFIG_DIR", user)
+	writeFile(t, filepath.Join(user, "skills", "review", "SKILL.md"), "---\nname: review\ndescription: Review the diff\n---\n")
+	writeFile(t, filepath.Join(user, "skills", "refactor", "SKILL.md"), "")
+	writeFile(t, filepath.Join(user, "commands", "release.md"), "")
+	writeFile(t, filepath.Join(proj, ".claude", "skills", "deploy", "SKILL.md"), "")
+
+	m := press(testModel(t), "n")
+	m.dlg.inputs[0].SetValue(proj)
+	m = press(m, "down", "down") // prompt field
+	if m.dlg.focus != 3 {
+		t.Fatalf("focus %d", m.dlg.focus)
+	}
+	m = press(m, "/", "d", "tab") // one match, project skill
+	if got := m.dlg.inputs[2].Value(); got != "/deploy " {
+		t.Fatalf("one match: %q", got)
+	}
+	m.dlg.inputs[2].SetValue("")
+	m = press(m, "/", "r")
+	if len(m.dlg.skillSugg) != 3 {
+		t.Fatalf("suggestions %v", m.dlg.skillSugg)
+	}
+	if v := plain(m); !strings.Contains(v, "/review") || !strings.Contains(v, "Review the") || !strings.Contains(v, "tab complete") {
+		t.Errorf("view:\n%s", v)
+	}
+	m = press(m, "tab") // common prefix "/re"
+	if got := m.dlg.inputs[2].Value(); got != "/re" {
+		t.Fatalf("prefix: %q", got)
+	}
+	m = press(m, "tab", "tab") // cycle: refactor, release
+	if got := m.dlg.inputs[2].Value(); got != "/release" {
+		t.Fatalf("cycle: %q", got)
+	}
+	m = press(m, "shift+tab")
+	if got := m.dlg.inputs[2].Value(); got != "/refactor" {
+		t.Fatalf("back: %q", got)
+	}
+	m.dlg.inputs[2].SetValue("fix /re")
+	m.dlg.inputs[2].CursorEnd()
+	m = press(m, "tab") // "/" only counts as the first word: next field
+	if m.dlg.focus != 4 {
+		t.Fatalf("focus %d", m.dlg.focus)
+	}
+
+	m = press(m, "esc", "m", "/", "r", "e", "v", "tab") // message to a claude agent
+	if m.dlg.kind != dlgMessage || m.dlg.inputs[0].Value() != "/review " {
+		t.Fatalf("message: %q", m.dlg.inputs[0].Value())
+	}
+}
+
+func TestFindSkillsCodex(t *testing.T) {
+	home, proj := t.TempDir(), t.TempDir()
+	t.Setenv("CODEX_HOME", home)
+	writeFile(t, filepath.Join(home, "prompts", "fix.md"), "---\ndescription: \"Fix it\"\n---\n")
+	writeFile(t, filepath.Join(home, "skills", "lint", "SKILL.md"), "")
+	writeFile(t, filepath.Join(proj, ".codex", "skills", "ship", "SKILL.md"), "")
+	got := findSkills("codex", proj)
+	var names []string
+	for _, s := range got {
+		names = append(names, s.name)
+	}
+	if strings.Join(names, ",") != "$lint,$ship,/prompts:fix" || got[2].desc != "Fix it" {
+		t.Fatalf("%v", got)
+	}
+	if skillFlavor("shell", "bash") != "" || skillFlavor("work", "/usr/bin/claude --x") != "claude" {
+		t.Fatal("flavor")
 	}
 }

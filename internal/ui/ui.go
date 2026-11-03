@@ -580,7 +580,9 @@ func (m Model) key(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "m":
 		if sel != nil {
 			m.dlg = &dialog{kind: dlgMessage, title: "Message to " + sel.Name(), target: sel.ID,
-				inputs: []textinput.Model{newInput("type and press enter", "", m.width-4)}}
+				inputs:   []textinput.Model{newInput("type and press enter", "", m.width-4)},
+				flavor:   skillFlavor(sel.Kind, m.cfg.Get().Agents[sel.Kind].Command),
+				skillDir: sel.Dir}
 			return m, m.dlg.focusInput()
 		}
 	case "a", "A":
@@ -757,6 +759,10 @@ func (m *Model) openNew(preset string) {
 		newInput("first prompt (optional)", "", w),
 	}
 	d.labels = []string{"agent", "folder", "name", "prompt", "worktree"}
+	d.kindCmds = map[string]string{}
+	for _, k := range kinds {
+		d.kindCmds[k] = cfg.Agents[k].Command
+	}
 	d.folderSuggest()
 	m.dlg = d
 }
@@ -829,6 +835,9 @@ func (m Model) dialogKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if d.kind == dlgNew && d.focus == 1 && key == "tab" && d.folderComplete(1) {
 			return m, nil
 		}
+		if key == "tab" && d.skillComplete(1) {
+			return m, nil
+		}
 		if d.kind == dlgFilter {
 			if key == "down" {
 				m.move(1)
@@ -837,9 +846,7 @@ func (m Model) dialogKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		if d.fields() > 1 {
 			d.focus = (d.focus + 1) % d.fields()
-			if d.kind == dlgNew {
-				d.folderSuggest()
-			}
+			d.suggest()
 			return m, d.focusInput()
 		}
 		return m, nil
@@ -854,11 +861,13 @@ func (m Model) dialogKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 			d.folderComplete(-1)
 			return m, nil
 		}
+		if key == "shift+tab" && d.cycling && d.skillInput() != nil {
+			d.skillComplete(-1)
+			return m, nil
+		}
 		if d.fields() > 1 {
 			d.focus = (d.focus - 1 + d.fields()) % d.fields()
-			if d.kind == dlgNew {
-				d.folderSuggest()
-			}
+			d.suggest()
 			return m, d.focusInput()
 		}
 		return m, nil
@@ -875,6 +884,7 @@ func (m Model) dialogKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case d.focus == 4 && (key == " " || key == "left" || key == "right" || key == "h" || key == "l"):
 			d.worktree = !d.worktree
 		}
+		d.suggest()
 		return m, nil
 	}
 	i := d.inputIndex()
@@ -886,8 +896,8 @@ func (m Model) dialogKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if d.kind == dlgFilter {
 		m.rebuild()
 	}
-	if d.kind == dlgNew && d.focus == 1 {
-		d.folderSuggest()
+	if d.kind == dlgNew && d.focus == 1 || d.skillInput() != nil {
+		d.suggest()
 	}
 	return m, cmd
 }
