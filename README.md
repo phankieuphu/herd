@@ -53,9 +53,24 @@ On macOS, also `brew install terminal-notifier`. Without it, clicking a herd not
 ```sh
 herd update          # download the latest release and restart the sidebar
 herd update main     # build the newest code on main instead (needs Go)
+herd update my-branch   # or any branch, tag or commit
+herd version         # check what you run now
 ```
 
 `herd update` replaces the herd binary it runs from, so it works the same whether you used `go install` or a downloaded binary. Your agents keep running.
+
+#### From your own clone
+
+```sh
+cd herd
+git pull
+make install         # builds into $(go env GOPATH)/bin, usually ~/go/bin
+herd                 # run it again so the sidebar restarts on the new binary
+```
+
+Use `make install` rather than `go build` or `go install ./cmd/herd`: the Makefile stamps the version from `git describe` (for example `v0.1.1-3-g0974ef6`). A plain `go build` has no version, so `herd version` prints `dev`.
+
+If `herd version` still shows the old version, another herd comes first in your `PATH`. `which -a herd` lists them; remove the old one or put `~/go/bin` first.
 
 ## Quick start
 
@@ -105,6 +120,8 @@ herd ls
 | `?` | help |
 
 Mouse works too: click a row to open it, scroll to move.
+
+![Tab completes skills in the new agent form](docs/images/skill-completion.png)
 
 Skill completion reads the agent's own folders. For Claude Code: `.claude/skills/*/SKILL.md` and `.claude/commands/*.md` in the agent's folder and the folders above it, the same under `~/.claude` (or `$CLAUDE_CONFIG_DIR`), and installed plugins (`/plugin:skill`). For Codex: `.codex/skills` in the project and `~/.codex/skills` (or `$CODEX_HOME`) as `$name`, and `~/.codex/prompts/*.md` as `/prompts:name`. The `description` from each file is shown next to the match.
 
@@ -284,7 +301,7 @@ herd update [ref]         update to the latest release, or build a branch/tag/co
 
 ```sh
 go test ./...        # unit tests plus integration tests against a private tmux server
-go build ./cmd/herd
+make build           # ./herd, with the version from git describe
 ```
 
 ## License
