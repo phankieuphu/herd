@@ -86,6 +86,7 @@ herd ls
 | `tab` / `shift+tab` | next / previous agent that needs you |
 | `n` / `N` | new agent / new agent from a preset |
 | `tab` in the folder field | complete the folder name (press again to step through matches) |
+| `tab` in the prompt or message field | complete a skill: `/name` as the first word, `$name` anywhere (press again to step through matches) |
 | `a` / `A` | allow / deny (only when it needs you) |
 | `m` | type a message to the agent |
 | `r` | rename the agent or group |
@@ -104,6 +105,8 @@ herd ls
 | `?` | help |
 
 Mouse works too: click a row to open it, scroll to move.
+
+Skill completion reads the agent's own folders. For Claude Code: `.claude/skills/*/SKILL.md` and `.claude/commands/*.md` in the agent's folder and the folders above it, the same under `~/.claude` (or `$CLAUDE_CONFIG_DIR`), and installed plugins (`/plugin:skill`). For Codex: `.codex/skills` in the project and `~/.codex/skills` (or `$CODEX_HOME`) as `$name`, and `~/.codex/prompts/*.md` as `/prompts:name`. The `description` from each file is shown next to the match.
 
 Two tmux keys are added (turn them off with `bind_keys = false`):
 

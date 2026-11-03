@@ -35,11 +35,21 @@ type dialog struct {
 	kindIdx  int
 	worktree bool
 
-	// folder suggestions; while cycling, tab steps through sugg
+	// folder suggestions; while cycling, tab steps through sugg (folders)
+	// or skillSugg (skills)
 	sugg        []string
 	suggIdx     int
 	cycling     bool
 	cycleParent string
+	cycleAfter  string
+
+	// skill suggestions in the prompt (new agent) or message field
+	skillSugg []skill
+	kindCmds  map[string]string // new agent: agent kind -> command
+	flavor    string            // message: "claude", "codex" or ""
+	skillDir  string            // message: the agent's folder
+	skillKey  string
+	skills    []skill
 
 	// lists (presets, group suggestions)
 	options []string
@@ -124,4 +134,13 @@ func fuzzy(s, q string) bool {
 		}
 	}
 	return i == len(qr)
+}
+
+// suggest refreshes the folder and skill suggestions after the text or
+// the focused field changed.
+func (d *dialog) suggest() {
+	if d.kind == dlgNew {
+		d.folderSuggest()
+	}
+	d.skillSuggest()
 }
