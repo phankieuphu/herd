@@ -117,13 +117,7 @@ Change them with `focus_key` and `jump_key` in `[integrations.tmux]`. Write `"pr
 
 ## How it works
 
-```
-┌──────── tmux session "herd" ────────────────┐
-│ sidebar (herd)  │  stage                     │      herd-fix-auth  (agent's own session)
-│                 │  ← the agent you picked    │      herd-docs
-│                 │    is swapped in here      │      herd-migrate-db
-└─────────────────┴────────────────────────────┘      ...
-```
+![The herd window: sidebar and stage in the herd session, next to one tmux session per agent](docs/images/how-it-works.png)
 
 - Every agent runs in its own tmux session (`herd-<name>`).
 - To show an agent, herd swaps its pane into the stage (`tmux swap-pane`). A small placeholder takes its place in the agent's own session, so nothing is restarted and nothing is lost.
