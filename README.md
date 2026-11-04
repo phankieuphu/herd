@@ -2,22 +2,7 @@
 
 Run many Claude Code and Codex agents side by side in tmux, with one sidebar that tells you which one needs you.
 
-```
- herd                       ◆1 ⠹2       ┃
-▌◆ fix auth •                  2m       ┃  Do you want to proceed?
-   claude · herd/fix-auth +42 −7        ┃  ❯ 1. Yes
- ⠹ docs                                 ┃    2. No
-   codex · herd/docs +3 −1              ┃
- ▾ infra 2                              ┃      (the agent you picked
-  ⠹ migrate db                          ┃       runs here, full size)
-    claude · herd/migrate-db            ┃
-  ☾ logs                                ┃
-    shell · main                        ┃
-── docs ─────────────────────────       ┃
- • Working (14s • esc to interrupt)     ┃
- Claude 5h ▰▰▱▱▱ 42% wk ▰▰▰▰▱ 85%       ┃
- n new ⏎ open tab next ? keys           ┃
-```
+![herd: tab completes skills in the new agent form](docs/images/skill-completion.png)
 
 herd is a small Go program. It runs inside any terminal (iTerm2, Terminal.app, Ghostty, Warp, Alacritty, or a terminal app on your phone over ssh). It only needs **tmux 3.2+** and **git**.
 
@@ -53,9 +38,24 @@ On macOS, also `brew install terminal-notifier`. Without it, clicking a herd not
 ```sh
 herd update          # download the latest release and restart the sidebar
 herd update main     # build the newest code on main instead (needs Go)
+herd update my-branch   # or any branch, tag or commit
+herd version         # check what you run now
 ```
 
 `herd update` replaces the herd binary it runs from, so it works the same whether you used `go install` or a downloaded binary. Your agents keep running.
+
+#### From your own clone
+
+```sh
+cd herd
+git pull
+make install         # builds into $(go env GOPATH)/bin, usually ~/go/bin
+herd                 # run it again so the sidebar restarts on the new binary
+```
+
+Use `make install` rather than `go build` or `go install ./cmd/herd`: the Makefile stamps the version from `git describe` (for example `v0.1.1-3-g0974ef6`). A plain `go build` has no version, so `herd version` prints `dev`.
+
+If `herd version` still shows the old version, another herd comes first in your `PATH`. `which -a herd` lists them; remove the old one or put `~/go/bin` first.
 
 ## Quick start
 
@@ -284,7 +284,7 @@ herd update [ref]         update to the latest release, or build a branch/tag/co
 
 ```sh
 go test ./...        # unit tests plus integration tests against a private tmux server
-go build ./cmd/herd
+make build           # ./herd, with the version from git describe
 ```
 
 ## License
