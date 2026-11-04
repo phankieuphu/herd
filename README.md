@@ -281,6 +281,8 @@ go test ./...        # unit tests plus integration tests against a private tmux 
 make build           # ./herd, with the version from git describe
 ```
 
+See [docs/architecture.md](docs/architecture.md) for how the code fits together.
+
 ## License
 
 MIT
