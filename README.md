@@ -2,22 +2,7 @@
 
 Run many Claude Code and Codex agents side by side in tmux, with one sidebar that tells you which one needs you.
 
-```
- herd                       ◆1 ⠹2       ┃
-▌◆ fix auth •                  2m       ┃  Do you want to proceed?
-   claude · herd/fix-auth +42 −7        ┃  ❯ 1. Yes
- ⠹ docs                                 ┃    2. No
-   codex · herd/docs +3 −1              ┃
- ▾ infra 2                              ┃      (the agent you picked
-  ⠹ migrate db                          ┃       runs here, full size)
-    claude · herd/migrate-db            ┃
-  ☾ logs                                ┃
-    shell · main                        ┃
-── docs ─────────────────────────       ┃
- • Working (14s • esc to interrupt)     ┃
- Claude 5h ▰▰▱▱▱ 42% wk ▰▰▰▰▱ 85%       ┃
- n new ⏎ open tab next ? keys           ┃
-```
+![herd: tab completes skills in the new agent form](docs/images/skill-completion.png)
 
 herd is a small Go program. It runs inside any terminal (iTerm2, Terminal.app, Ghostty, Warp, Alacritty, or a terminal app on your phone over ssh). It only needs **tmux 3.2+** and **git**.
 
@@ -120,8 +105,6 @@ herd ls
 | `?` | help |
 
 Mouse works too: click a row to open it, scroll to move.
-
-![Tab completes skills in the new agent form](docs/images/skill-completion.png)
 
 Skill completion reads the agent's own folders. For Claude Code: `.claude/skills/*/SKILL.md` and `.claude/commands/*.md` in the agent's folder and the folders above it, the same under `~/.claude` (or `$CLAUDE_CONFIG_DIR`), and installed plugins (`/plugin:skill`). For Codex: `.codex/skills` in the project and `~/.codex/skills` (or `$CODEX_HOME`) as `$name`, and `~/.codex/prompts/*.md` as `/prompts:name`. The `description` from each file is shown next to the match.
 
