@@ -20,3 +20,27 @@ checksum:
 
 changelog:
   sort: asc
+
+# Publishes Casks/herd.rb to github.com/phankieuphu/homebrew-tap on each release.
+# Users install with: brew install phankieuphu/tap/herd
+homebrew_casks:
+  - name: herd
+    repository:
+      owner: phankieuphu
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    homepage: https://github.com/phankieuphu/herd
+    description: Run many Claude Code and Codex agents side by side in tmux
+    license: MIT
+    dependencies:
+      - formula: tmux
+    hooks:
+      post:
+        # The binary is not notarized; drop the quarantine flag so macOS runs it.
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/herd"]
+          end

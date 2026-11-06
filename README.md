@@ -21,7 +21,15 @@ herd is a small Go program. It runs inside any terminal (iTerm2, Terminal.app, G
 
 ## Install
 
-With Go 1.24 or newer:
+With Homebrew (macOS or Linux), which also installs tmux:
+
+```sh
+brew install phankieuphu/tap/herd
+```
+
+Upgrade with `brew upgrade herd` rather than `herd update`, so Homebrew keeps track of the version.
+
+Or with Go 1.24 or newer:
 
 ```sh
 go install github.com/phankieuphu/herd/cmd/herd@latest
